@@ -54,7 +54,7 @@ class OCR_Processer(ABC):
     def call_transformer(self, encoder_input):
         raise NotImplementedError()
 
-    def call_OCR(self, target_file, resize=1.0):
+    def call_OCR(self, target_file, resize=1.0, output_json_path=None):
         im0 = Image.open(target_file).convert('RGB')
         if resize != 1.0:
             im0 = im0.resize((int(im0.width * resize), int(im0.height * resize)), resample=Image.Resampling.BILINEAR)
@@ -86,7 +86,6 @@ class OCR_Processer(ABC):
         input_binary += int(locations.shape[0]).to_bytes(4, 'little')
         input_binary += locations[:,1:].tobytes()
 
-        print('run')
         result = subprocess.run('textline_detect/linedetect', input=input_binary, stdout=subprocess.PIPE).stdout
         detected_boxes = []
         p = 0
@@ -226,7 +225,6 @@ class OCR_Processer(ABC):
                 keep_back = 0
                 cur_i = cur_j
                 continue
-            print(prev_j,cur_i,cur_j,'/',features.shape[0])
             encoder_input = np.zeros(shape=(1,max_encoderlen, encoder_dim), dtype=np.float32)
             encoder_input[0,0,:] = SP_token
             encoder_input[0,1:1+cur_j-cur_i,:] = features[cur_i:cur_j,:]
@@ -464,17 +462,17 @@ class OCR_Processer(ABC):
         outdict['aozora'] = decode_ruby(result_txt, outtype='aozora')
         outdict['noruby'] = decode_ruby(result_txt, outtype='noruby')
 
-        print("---------------------")
-        print(decode_ruby(result_txt))
+        if output_json_path is None:
+            output_json_path = target_file + '.json'
 
-        with open(target_file+'.json', 'w', encoding='utf-8') as file:
-            json.dump(outdict, file, indent=2, ensure_ascii=False)
+        if output_json_path:
+            with open(output_json_path, 'w', encoding='utf-8') as file:
+                json.dump(outdict, file, indent=2, ensure_ascii=False)
+
+        return outdict
 
 
     def run_detector(self, ds, org_img):
-        print(org_img.shape)
-        print("test")
-
         locations = [np.zeros(5+4)]
         glyphfeatures = [np.zeros(feature_dim, dtype=np.float32)]
         keymap_all = np.zeros([org_img.shape[0] // scale, org_img.shape[1] // scale], dtype=np.float32)
@@ -485,7 +483,6 @@ class OCR_Processer(ABC):
             code_all.append(np.zeros([org_img.shape[0] // scale, org_img.shape[1] // scale], dtype=np.float32))
 
         for n, inputs in enumerate(ds):
-            print(n, '/', len(ds))
             x_i = inputs['offsetx']
             y_i = inputs['offsety']
             x_is = x_i // scale

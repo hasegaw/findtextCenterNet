@@ -1,5 +1,6 @@
 from torchvision.models.efficientnet import EfficientNet, FusedMBConvConfig, MBConvConfig
 from torchvision.models import efficientnet_v2_l, efficientnet_v2_m, efficientnet_v2_s
+import logging
 import torch
 from torch import nn, Tensor
 from torch.nn.modules import Conv2d
@@ -8,6 +9,8 @@ from functools import partial
 from typing import Any
 
 from util_func import feature_dim, modulo_list, width, height
+
+logger = logging.getLogger(__name__)
 
 def efficientnet_v2_xl(**kwargs: Any) -> EfficientNet:
     inverted_residual_setting = [
@@ -32,11 +35,11 @@ def load_weight(model: EfficientNet, weight_path: str) -> EfficientNet:
     import os
 
     if not os.path.exists(weight_path):
-        print('not found:', weight_path)
+        logger.warning("pretrained EfficientNet weights not found: %s", weight_path)
         return model
 
     with np.load(weight_path) as weights:
-        print('loading weights')
+        logger.debug("loading pretrained EfficientNet weights: %s", weight_path)
         def apply_weights(func, base, tag=None):
             if isinstance(func, Conv2d):
                 state_dict = func.state_dict()
